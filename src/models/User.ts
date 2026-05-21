@@ -7,11 +7,22 @@ export interface IUser extends Document {
   password: string;
   role: 'student' | 'teacher' | 'hod' | 'principal';
   avatarUrl: string;
+  qrCode?: string;
   phone?: string;
   rollNumber?: string;
+  enrollmentNumber?: string;
+  universityId?: mongoose.Types.ObjectId;
+  collegeId?: mongoose.Types.ObjectId;
+  departmentId?: mongoose.Types.ObjectId;
+  year?: 'FE' | 'SE' | 'TE' | 'BE';
   semester?: number;
+  teachingSemesters?: number[];
   address?: string;
   department?: string;
+  batchIds?: mongoose.Types.ObjectId[];
+  subjectIds?: mongoose.Types.ObjectId[];
+  isVerified: boolean;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -44,6 +55,10 @@ const UserSchema: Schema = new Schema(
       type: String,
       default: '',
     },
+    qrCode: {
+      type: String,
+      default: '',
+    },
     phone: {
       type: String,
       default: '',
@@ -53,11 +68,42 @@ const UserSchema: Schema = new Schema(
       default: '',
       index: true,
     },
+    enrollmentNumber: {
+      type: String,
+      default: '',
+      index: true,
+    },
+    universityId: {
+      type: Schema.Types.ObjectId,
+      ref: 'University',
+      index: true,
+    },
+    collegeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'College',
+      index: true,
+    },
+    departmentId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Department',
+      index: true,
+    },
+    year: {
+      type: String,
+      enum: ['FE', 'SE', 'TE', 'BE'],
+      index: true,
+    },
     semester: {
       type: Number,
       min: 1,
       max: 8,
+      index: true,
     },
+    teachingSemesters: [{
+      type: Number,
+      min: 1,
+      max: 8,
+    }],
     address: {
       type: String,
       default: '',
@@ -66,11 +112,31 @@ const UserSchema: Schema = new Schema(
       type: String,
       default: '',
     },
+    batchIds: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Batch',
+    }],
+    subjectIds: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Subject',
+    }],
+    isVerified: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+UserSchema.index({ role: 1, collegeId: 1, departmentId: 1 });
 
 // Hash password before saving
 UserSchema.pre('save', async function () {

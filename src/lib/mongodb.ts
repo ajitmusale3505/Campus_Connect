@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 const MONGODB_URI = process.env.MONGODB_URI!;
+const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME;
 
 if (!MONGODB_URI) {
   throw new Error(
@@ -27,6 +28,7 @@ async function dbConnect() {
   if (!cached.promise) {
     const opts: mongoose.ConnectOptions = {
       bufferCommands: false,
+      ...(MONGODB_DB_NAME ? { dbName: MONGODB_DB_NAME } : {}),
       maxPoolSize: 10,
       minPoolSize: 2,
       maxIdleTimeMS: 10000,
@@ -37,7 +39,7 @@ async function dbConnect() {
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      console.log('MongoDB connected successfully');
+      console.log(`MongoDB connected successfully${MONGODB_DB_NAME ? ` to ${MONGODB_DB_NAME}` : ''}`);
       return mongoose;
     });
   }

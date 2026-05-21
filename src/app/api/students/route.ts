@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
-import { getAuthUser, hasRole, unauthorizedResponse } from '@/lib/auth';
+import { unauthorizedResponse } from '@/lib/auth';
+import { getCurrentDbUser, hasDbRole } from '@/lib/current-user';
 
 // GET - Fetch all students
 export async function GET(request: NextRequest) {
@@ -10,24 +11,36 @@ export async function GET(request: NextRequest) {
     await dbConnect();
     console.log('=== Students API: DB Connected ===');
 
-    const authUser = getAuthUser(request);
-    if (!authUser) {
+    const currentUser = await getCurrentDbUser(request);
+    if (!currentUser) {
       return unauthorizedResponse();
     }
 
-    if (!hasRole(authUser, ['teacher', 'hod', 'principal'])) {
+    if (!hasDbRole(currentUser, ['teacher', 'hod', 'principal'])) {
       return unauthorizedResponse('Forbidden', 403);
     }
 
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role') || 'student';
     const department = searchParams.get('department');
+    const departmentId = searchParams.get('departmentId');
+    const semester = searchParams.get('semester');
+    const batchId = searchParams.get('batchId');
     console.log('=== Students API: Query params ===', { role, department });
 
     // Build query
     const query: any = { role };
     if (department) {
       query.department = department;
+    }
+    if (departmentId) {
+      query.departmentId = departmentId;
+    }
+    if (semester) {
+      query.semester = Number(semester);
+    }
+    if (batchId) {
+      query.batchIds = batchId;
     }
 
     const students = await User.find(query)

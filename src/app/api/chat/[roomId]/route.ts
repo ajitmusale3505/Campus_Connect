@@ -3,6 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import ChatMessage from '@/models/ChatMessage';
 import User from '@/models/User';
 import { getAuthUser, unauthorizedResponse } from '@/lib/auth';
+import { sanitizeChatMessage, sanitizeChatMessages } from '@/lib/chat-privacy';
 
 // GET - Fetch all messages for a specific room
 export async function GET(
@@ -27,7 +28,7 @@ export async function GET(
       .populate('replies.authorId', 'name avatarUrl role')
       .sort({ timestamp: 1 }); // Oldest first for chat history
     
-    return NextResponse.json(messages);
+    return NextResponse.json(sanitizeChatMessages(messages));
   } catch (error) {
     console.error('Error fetching chat messages:', error);
     return NextResponse.json(
@@ -85,7 +86,7 @@ export async function POST(
     const populatedMessage = await ChatMessage.findById(newMessage._id)
       .populate('authorId', 'name avatarUrl role');
       
-    return NextResponse.json(populatedMessage, { status: 201 });
+    return NextResponse.json(sanitizeChatMessage(populatedMessage), { status: 201 });
   } catch (error) {
     console.error('Error creating chat message:', error);
     return NextResponse.json(

@@ -293,6 +293,11 @@ export default function StudentDashboard() {
                         Digital Library <BookOpen className="h-4 w-4 text-muted-foreground" />
                     </Button>
                 </Link>
+                <Link href="/student/attendance">
+                    <Button variant="outline" className="w-full justify-between">
+                        Attendance & QR <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                </Link>
                 <Link href="/student/assignments">
                     <Button variant="outline" className="w-full justify-between">
                         View Assignments <ClipboardList className="h-4 w-4 text-muted-foreground" />

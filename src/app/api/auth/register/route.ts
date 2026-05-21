@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
+import Batch from '@/models/Batch';
+import Department from '@/models/Department';
+import Notification from '@/models/Notification';
 import jwt from 'jsonwebtoken';
+import { generateStudentQrCode } from '@/lib/qr-attendance';
+import { toUserResponse } from '@/lib/user-response';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
@@ -35,7 +40,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create new user
+    const academicPayload: Record<string, any> = {};
+    const department = body.departmentId ? await Department.findById(body.departmentId) : null;
+
+    if (['student', 'teacher', 'hod'].includes(role)) {
+      academicPayload.universityId = body.universityId || undefined;
+      academicPayload.collegeId = body.collegeId || undefined;
+      academicPayload.departmentId = body.departmentId || undefined;
+      academicPayload.department = department?.name || body.department || '';
+    }
+
+    if (role === 'student') {
+      if (!body.universityId || !body.collegeId || !body.departmentId || !body.year || !body.semester || !body.rollNumber || !body.enrollmentNumber) {
+        return NextResponse.json(
+          { error: 'Students must select university, college, department, year, semester and enter roll/enrollment number' },
+          { status: 400 }
+        );
+      }
+
+      academicPayload.year = body.year;
+      academicPayload.semester = Number(body.semester);
+      academicPayload.rollNumber = body.rollNumber;
+      academicPayload.enrollmentNumber = body.enrollmentNumber;
+    }
+
+    if (role === 'teacher') {
+      academicPayload.subjectIds = Array.isArray(body.subjectIds) ? body.subjectIds : [];
+      academicPayload.teachingSemesters = Array.isArray(body.teachingSemesters)
+        ? body.teachingSemesters.map((semester: any) => Number(semester)).filter((semester: number) => semester >= 1 && semester <= 8)
+        : [];
+      academicPayload.year = body.year || undefined;
+      academicPayload.semester = academicPayload.teachingSemesters[0] || (body.semester ? Number(body.semester) : undefined);
+    }
+
     console.log('=== Register Route: Creating user ===');
     const user = await User.create({
       name,
@@ -43,7 +80,48 @@ export async function POST(request: NextRequest) {
       password,
       role,
       avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
+      ...academicPayload,
     });
+
+    if (role === 'student') {
+      const matchingBatches = await Batch.find({
+        collegeId: user.collegeId,
+        departmentId: user.departmentId,
+        year: user.year,
+        semester: user.semester,
+        isActive: true,
+      }).select('_id');
+
+      user.batchIds = matchingBatches.map((batch) => batch._id);
+      user.qrCode = await generateStudentQrCode({
+        studentId: user._id.toString(),
+        enrollmentNumber: user.enrollmentNumber || '',
+        collegeId: user.collegeId?.toString(),
+        departmentId: user.departmentId?.toString(),
+      });
+      await user.save();
+
+      if (matchingBatches.length) {
+        await Batch.updateMany(
+          { _id: { $in: user.batchIds } },
+          { $addToSet: { studentIds: user._id } }
+        );
+      }
+
+      await Notification.create({
+        userId: user._id,
+        text: `Welcome to CampusConnect. You are registered for ${user.year} Semester ${user.semester}.`,
+        type: 'success',
+        category: 'general',
+        link: '/student/attendance',
+        read: false,
+        timestamp: new Date(),
+      });
+    }
+
+    if (role === 'hod' && user.departmentId) {
+      await Department.findByIdAndUpdate(user.departmentId, { hodId: user._id });
+    }
     console.log('=== Register Route: User created ===', { userId: user._id, email: user.email });
 
     // Generate JWT token
@@ -60,18 +138,7 @@ export async function POST(request: NextRequest) {
     console.log('=== Register Route: JWT generated ===', { tokenLength: token.length });
 
     // Return user data without password
-    const userResponse = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      avatarUrl: user.avatarUrl,
-      phone: user.phone,
-      rollNumber: user.rollNumber,
-      semester: user.semester,
-      address: user.address,
-      department: user.department,
-    };
+    const userResponse = toUserResponse(user);
 
     const response = NextResponse.json(
       { 

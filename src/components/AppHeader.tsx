@@ -33,6 +33,7 @@ import type { User } from '@/types';
 import AppSidebar from './AppSidebar';
 import { ThemeToggle } from './ThemeToggle';
 import { Badge } from './ui/badge';
+import AnnouncementTicker from './AnnouncementTicker';
 
 export default function AppHeader({ user }: { user: User }) {
   const { logout } = useAuth();
@@ -103,7 +104,8 @@ export default function AppHeader({ user }: { user: User }) {
           <AppSidebar role={user.role} isMobile={true} />
         </SheetContent>
       </Sheet>
-      <div className="flex w-full items-center justify-end gap-4 md:ml-auto md:gap-2 lg:gap-4">
+      <AnnouncementTicker />
+      <div className="flex shrink-0 items-center justify-end gap-4 md:ml-auto md:gap-2 lg:gap-4">
         <ThemeToggle />
         <Button 
           variant="ghost" 

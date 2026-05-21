@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Paperclip, CornerDownLeft, ThumbsUp, User, Shield, MessageSquare, X } from 'lucide-react';
 import type { ChatMessage, User as UserType } from '@/types';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -14,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import ChatAvatar from './ChatAvatar';
 
 const Message = ({ msg, currentUser }: { msg: ChatMessage; currentUser: UserType }) => {
     const isCurrentUser = msg.author.id === currentUser.id;
@@ -21,12 +21,7 @@ const Message = ({ msg, currentUser }: { msg: ChatMessage; currentUser: UserType
 
     return (
         <div className={cn("flex items-start gap-3", isCurrentUser && "justify-end")}>
-            {!isCurrentUser && (
-                <Avatar className="h-8 w-8">
-                    <AvatarImage src={msg.author.avatarUrl} alt={authorName} />
-                    <AvatarFallback>{authorName.charAt(0)}</AvatarFallback>
-                </Avatar>
-            )}
+            {!isCurrentUser && <ChatAvatar sender={msg.author} isAnonymous={msg.author.anonymous} />}
             <div className={cn("flex flex-col gap-1", isCurrentUser ? 'items-end' : 'items-start')}>
                 <div className={cn(
                     "max-w-xs md:max-w-md lg:max-w-lg rounded-lg p-3 text-sm",
@@ -66,10 +61,7 @@ const Message = ({ msg, currentUser }: { msg: ChatMessage; currentUser: UserType
                 </div>
             </div>
             {isCurrentUser && (
-                <Avatar className="h-8 w-8">
-                    <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
-                    <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
-                </Avatar>
+                <ChatAvatar sender={currentUser} isAnonymous={msg.author.anonymous} />
             )}
         </div>
     )

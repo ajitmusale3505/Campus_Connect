@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Attendance from '@/models/Attendance';
 import { getAuthUser, hasRole, unauthorizedResponse } from '@/lib/auth';
+import { getCurrentDbUser } from '@/lib/current-user';
 
 // GET - Fetch attendance records
 export async function GET(request: NextRequest) {
@@ -15,18 +16,42 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
+    const studentId = searchParams.get('studentId');
+    const teacherId = searchParams.get('teacherId');
+    const batchId = searchParams.get('batchId');
+    const subjectId = searchParams.get('subjectId');
+    const date = searchParams.get('date');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
     let query: any = {};
 
     if (authUser.role === 'student') {
-      query.userId = authUser.userId;
+      query.$or = [{ userId: authUser.userId }, { studentId: authUser.userId }];
+    } else if (searchParams.get('mine') === 'true') {
+      const currentUser = await getCurrentDbUser(request);
+      if (!currentUser) return unauthorizedResponse('User not found', 404);
+      if (currentUser.role === 'teacher') {
+        query.teacherId = currentUser._id;
+      } else if (currentUser.role === 'hod' && currentUser.departmentId) {
+        query.departmentId = currentUser.departmentId;
+      }
     } else if (userId) {
       query.userId = userId;
     }
 
-    if (startDate && endDate) {
+    if (studentId && authUser.role !== 'student') query.studentId = studentId;
+    if (teacherId && authUser.role !== 'student') query.teacherId = teacherId;
+    if (batchId) query.batchId = batchId;
+    if (subjectId) query.subjectId = subjectId;
+
+    if (date) {
+      const selectedDate = new Date(date);
+      selectedDate.setHours(0, 0, 0, 0);
+      const nextDate = new Date(selectedDate);
+      nextDate.setDate(selectedDate.getDate() + 1);
+      query.date = { $gte: selectedDate, $lt: nextDate };
+    } else if (startDate && endDate) {
       query.date = {
         $gte: new Date(startDate),
         $lte: new Date(endDate),
@@ -34,8 +59,13 @@ export async function GET(request: NextRequest) {
     }
 
     const attendance = await Attendance.find(query)
-      .populate('userId', 'name email role')
-      .sort({ date: -1 });
+      .populate('userId', 'name email role rollNumber enrollmentNumber')
+      .populate('studentId', 'name email role rollNumber enrollmentNumber semester')
+      .populate('teacherId', 'name email')
+      .populate('subjectId', 'code name semester year')
+      .populate('batchId', 'batchCode semester year')
+      .sort({ date: -1, timestamp: -1 })
+      .limit(Math.min(Number(searchParams.get('limit') || 200), 500));
 
     return NextResponse.json({ success: true, data: attendance });
   } catch (error: any) {

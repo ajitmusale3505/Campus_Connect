@@ -7,11 +7,20 @@ export interface User {
   email: string;
   role: Role;
   avatarUrl: string;
+  qrCode?: string;
   phone?: string;
   address?: string;
   department?: string;
+  universityId?: string;
+  collegeId?: string;
+  departmentId?: string;
+  year?: 'FE' | 'SE' | 'TE' | 'BE';
   semester?: number | string;
+  teachingSemesters?: number[];
   rollNumber?: string;
+  enrollmentNumber?: string;
+  batchIds?: string[];
+  subjectIds?: string[];
 }
 
 export interface Attendance {

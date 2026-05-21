@@ -3,6 +3,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface INotice extends Document {
   title: string;
   content: string;
+  collegeId?: mongoose.Types.ObjectId;
+  departmentId?: mongoose.Types.ObjectId;
   createdBy: mongoose.Types.ObjectId;
   targetAudience: {
     departments?: string[];
@@ -30,6 +32,16 @@ const NoticeSchema: Schema = new Schema(
     content: {
       type: String,
       required: true,
+    },
+    collegeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'College',
+      index: true,
+    },
+    departmentId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Department',
+      index: true,
     },
     createdBy: {
       type: Schema.Types.ObjectId,
@@ -80,6 +92,8 @@ const NoticeSchema: Schema = new Schema(
     timestamps: true,
   }
 );
+
+NoticeSchema.index({ isActive: 1, expiryDate: 1, priority: 1 });
 
 const Notice: mongoose.Model<INotice> =
   mongoose.models.Notice || mongoose.model<INotice>('Notice', NoticeSchema);

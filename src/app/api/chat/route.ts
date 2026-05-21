@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import ChatMessage from '@/models/ChatMessage';
 import { getAuthUser, unauthorizedResponse } from '@/lib/auth';
+import { sanitizeChatMessage, sanitizeChatMessages } from '@/lib/chat-privacy';
 
 // GET - Fetch chat messages
 export async function GET(request: NextRequest) {
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
       .sort({ timestamp: -1 })
       .limit(limit);
 
-    return NextResponse.json({ success: true, data: messages });
+    return NextResponse.json({ success: true, data: sanitizeChatMessages(messages) });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
     const populatedMessage = await ChatMessage.findById((message as any)._id)
       .populate('authorId', 'name email role avatarUrl');
 
-    return NextResponse.json({ success: true, data: populatedMessage }, { status: 201 });
+    return NextResponse.json({ success: true, data: sanitizeChatMessage(populatedMessage) }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
@@ -109,7 +110,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data: message });
+    return NextResponse.json({ success: true, data: sanitizeChatMessage(message) });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }

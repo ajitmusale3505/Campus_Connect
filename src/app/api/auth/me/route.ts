@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import jwt from 'jsonwebtoken';
+import { toUserResponse } from '@/lib/user-response';
+import { generateStudentQrCode } from '@/lib/qr-attendance';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
@@ -37,19 +39,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (user.role === 'student') {
+      user.qrCode = await generateStudentQrCode({
+        studentId: user._id.toString(),
+        enrollmentNumber: user.enrollmentNumber || '',
+        collegeId: user.collegeId?.toString(),
+        departmentId: user.departmentId?.toString(),
+      });
+      await user.save();
+    }
+
     // Return user data
-    const userResponse = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      avatarUrl: user.avatarUrl,
-      phone: user.phone,
-      rollNumber: user.rollNumber,
-      semester: user.semester,
-      address: user.address,
-      department: user.department,
-    };
+    const userResponse = toUserResponse(user);
 
     return NextResponse.json(
       { success: true, data: userResponse },

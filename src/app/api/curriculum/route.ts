@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       ],
     } as any);
 
-    const populated = await SyllabusUpdate.findById(update._id)
+    const populated = await SyllabusUpdate.findById((update as any)._id)
       .populate('submittedBy', 'name email department')
       .populate('reviewedBy', 'name email')
       .populate('changeLogs.updatedBy', 'name email');

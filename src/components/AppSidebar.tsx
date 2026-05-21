@@ -39,6 +39,7 @@ const navItems: NavItem[] = [
   // Student
   { href: '/student', icon: LayoutDashboard, label: 'Dashboard', roles: ['student'] },
   { href: '/student/profile', icon: User, label: 'Profile', roles: ['student'] },
+  { href: '/student/attendance', icon: CalendarCheck, label: 'Attendance', roles: ['student'] },
   { href: '/student/notices', icon: Bell, label: 'Notices', roles: ['student'] },
   { href: '/student/library', icon: BookOpen, label: 'Digital Library', roles: ['student'] },
   { href: '/student/doubts', icon: HelpCircle, label: 'Anonymous Doubts', roles: ['student'] },

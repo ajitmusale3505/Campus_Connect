@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import ChatWindow from "@/components/chat/ChatWindow";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { ANONYMOUS_AVATAR } from "@/lib/chat-privacy";
 
 export default function ChatRoomPage({ params }: { params: { roomId: string } }) {
   const { user, loading } = useAuth();
@@ -36,7 +37,7 @@ export default function ChatRoomPage({ params }: { params: { roomId: string } })
             id: msg.authorId?._id || 'unknown',
             name: msg.isAnonymous ? 'Anonymous' : (msg.authorId?.name || 'Unknown User'),
             role: msg.authorId?.role || 'student',
-            avatarUrl: msg.isAnonymous ? 'https://picsum.photos/seed/anon/100/100' : (msg.authorId?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.authorId?.name || 'User')}&background=random`),
+            avatarUrl: msg.isAnonymous ? ANONYMOUS_AVATAR : (msg.authorId?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.authorId?.name || 'User')}&background=random`),
             anonymous: msg.isAnonymous
           },
           replies: msg.replies || [],
@@ -80,7 +81,7 @@ export default function ChatRoomPage({ params }: { params: { roomId: string } })
         id: user.id,
         name: isAnonymous ? 'Anonymous' : user.name,
         role: user.role,
-        avatarUrl: isAnonymous ? 'https://picsum.photos/seed/anon/100/100' : (user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`),
+        avatarUrl: isAnonymous ? ANONYMOUS_AVATAR : (user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`),
         anonymous: isAnonymous
       },
       replies: []
