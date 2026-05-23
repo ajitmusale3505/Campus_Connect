@@ -50,6 +50,7 @@ export default function AttendancePage() {
   const [scanning, setScanning] = useState(false);
   const [scanLog, setScanLog] = useState<string[]>([]);
   const [scanBusy, setScanBusy] = useState(false);
+  const [finalizingSession, setFinalizingSession] = useState(false);
   const [history, setHistory] = useState<AttendanceHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -260,6 +261,36 @@ export default function AttendancePage() {
     }
     scannerRef.current = null;
     setScanning(false);
+    await finalizeQrSession();
+  };
+
+  const finalizeQrSession = async () => {
+    if (!selectedBatchId || !selectedSubjectId || !hasFacultySession || finalizingSession) return;
+    setFinalizingSession(true);
+    try {
+      const response = await fetch('/api/attendance/finalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batchId: selectedBatchId, subjectId: selectedSubjectId, date, sessionToken }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        const createdAbsent = data.data?.createdAbsent || 0;
+        toast({
+          title: 'Attendance Session Closed',
+          description: createdAbsent
+            ? `${createdAbsent} unscanned student${createdAbsent === 1 ? '' : 's'} marked absent and notified.`
+            : 'All eligible students already had attendance records.',
+        });
+        fetchHistory();
+      } else {
+        toast({ title: 'Could not close session', description: data.error, variant: 'destructive' });
+      }
+    } catch (error: any) {
+      toast({ title: 'Could not close session', description: error.message || 'Failed to mark absent students.', variant: 'destructive' });
+    } finally {
+      setFinalizingSession(false);
+    }
   };
 
   useEffect(() => () => {
@@ -392,7 +423,9 @@ export default function AttendancePage() {
                 <div id={scannerId} className="min-h-[360px] overflow-hidden rounded-lg border bg-black/5" />
                 <div className="flex gap-2">
                   <Button onClick={startScanner} disabled={scanning || !selectedBatchId || !hasFacultySession}><Camera className="mr-2 h-4 w-4" /> Start Camera</Button>
-                  <Button variant="outline" onClick={stopScanner} disabled={!scanning}>Stop</Button>
+                  <Button variant="outline" onClick={stopScanner} disabled={!scanning || finalizingSession}>
+                    {finalizingSession ? 'Closing...' : 'Stop & Mark Absentees'}
+                  </Button>
                 </div>
                 <div className="flex gap-2">
                   <Input value={qrPayload} onChange={(event) => setQrPayload(event.target.value)} placeholder="Paste QR token if camera is unavailable" />
