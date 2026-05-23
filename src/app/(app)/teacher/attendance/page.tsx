@@ -41,6 +41,10 @@ export default function AttendancePage() {
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedBatchId, setSelectedBatchId] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [historyStartDate, setHistoryStartDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [historyEndDate, setHistoryEndDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [historyStatus, setHistoryStatus] = useState<'all' | 'present' | 'absent' | 'late'>('all');
+  const [historyStudentSearch, setHistoryStudentSearch] = useState('');
   const [manualAttendance, setManualAttendance] = useState<Record<string, 'present' | 'absent' | 'late'>>({});
   const [qrPayload, setQrPayload] = useState('');
   const [scanning, setScanning] = useState(false);
@@ -56,6 +60,21 @@ export default function AttendancePage() {
   const selectedBatch = batches.find((batch) => batch._id === selectedBatchId);
   const sessionToken = useMemo(() => crypto.randomUUID(), [selectedBatchId, selectedSubjectId, date]);
   const hasFacultySession = ['teacher', 'hod', 'principal'].includes(activeSessionRole || '');
+  const filteredHistory = useMemo(() => {
+    const search = historyStudentSearch.trim().toLowerCase();
+    return history.filter((record) => {
+      const matchesStatus = historyStatus === 'all' || record.status === historyStatus;
+      if (!matchesStatus) return false;
+      if (!search) return true;
+      const studentText = [
+        record.studentId?.name,
+        record.studentId?.email,
+        record.studentId?.rollNumber,
+        record.studentId?.enrollmentNumber,
+      ].filter(Boolean).join(' ').toLowerCase();
+      return studentText.includes(search);
+    });
+  }, [history, historyStatus, historyStudentSearch]);
 
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' })
@@ -120,7 +139,10 @@ export default function AttendancePage() {
       const params = new URLSearchParams({ mine: 'true', limit: '300' });
       if (selectedSubjectId) params.set('subjectId', selectedSubjectId);
       if (selectedBatchId) params.set('batchId', selectedBatchId);
-      if (date) params.set('date', date);
+      if (historyStartDate && historyEndDate) {
+        params.set('startDate', historyStartDate);
+        params.set('endDate', historyEndDate);
+      }
       const response = await fetch(`/api/attendance?${params.toString()}`, {
         credentials: 'include',
         cache: 'no-store',
@@ -140,7 +162,7 @@ export default function AttendancePage() {
 
   useEffect(() => {
     fetchHistory();
-  }, [hasFacultySession, selectedSubjectId, selectedBatchId, date]);
+  }, [hasFacultySession, selectedSubjectId, selectedBatchId, historyStartDate, historyEndDate]);
 
   const createBatch = async () => {
     if (!selectedSubjectId) return;
@@ -287,10 +309,10 @@ export default function AttendancePage() {
   const exportHistoryCsv = () => {
     const rows = [
       ['Date', 'Day', 'Lecture No.', 'Student', 'Roll Number', 'Subject', 'Batch', 'Status', 'Marked Via', 'Teacher', 'Timestamp'],
-      ...history.map((record, index) => [
+      ...filteredHistory.map((record, index) => [
         new Date(record.date).toLocaleDateString(),
         new Date(record.date).toLocaleDateString(undefined, { weekday: 'long' }),
-        history.length - index,
+        filteredHistory.length - index,
         record.studentId?.name || '',
         record.studentId?.rollNumber || record.studentId?.enrollmentNumber || '',
         record.subjectId ? `${record.subjectId.code} - ${record.subjectId.name}` : '',
@@ -305,7 +327,7 @@ export default function AttendancePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `attendance_history_${date || 'all'}.csv`;
+    a.download = `attendance_history_${historyStartDate || 'all'}_${historyEndDate || 'all'}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -327,7 +349,7 @@ export default function AttendancePage() {
           <h1 className="text-3xl font-bold">Take Attendance</h1>
           <p className="text-muted-foreground">QR scan and manual attendance for assigned SPPU batches.</p>
         </div>
-        <Button variant="outline" onClick={exportHistoryCsv} disabled={history.length === 0}>
+        <Button variant="outline" onClick={exportHistoryCsv} disabled={filteredHistory.length === 0}>
           <Download className="mr-2 h-4 w-4" /> Export History
         </Button>
       </div>
@@ -444,57 +466,75 @@ export default function AttendancePage() {
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
                   <CardTitle>Attendance History</CardTitle>
-                  <CardDescription>Stored records for the selected subject, batch, and date.</CardDescription>
+                  <CardDescription>Stored attendance register with subject, date, time, teacher, and filters.</CardDescription>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={fetchHistory} disabled={historyLoading}>
                     <RefreshCw className="mr-2 h-4 w-4" /> {historyLoading ? 'Loading' : 'Refresh'}
                   </Button>
-                  <Button variant="outline" onClick={exportHistoryCsv} disabled={history.length === 0}>
+                  <Button variant="outline" onClick={exportHistoryCsv} disabled={filteredHistory.length === 0}>
                     <Download className="mr-2 h-4 w-4" /> Export CSV
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-4">
+                <Input type="date" value={historyStartDate} onChange={(event) => setHistoryStartDate(event.target.value)} />
+                <Input type="date" value={historyEndDate} onChange={(event) => setHistoryEndDate(event.target.value)} />
+                <Select value={historyStatus} onValueChange={(value: 'all' | 'present' | 'absent' | 'late') => setHistoryStatus(value)}>
+                  <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="present">Present</SelectItem>
+                    <SelectItem value="absent">Absent</SelectItem>
+                    <SelectItem value="late">Late</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input value={historyStudentSearch} onChange={(event) => setHistoryStudentSearch(event.target.value)} placeholder="Filter by student / roll" />
+              </div>
+              <div className="overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Subject</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Day</TableHead>
+                    <TableHead>Time</TableHead>
                     <TableHead>Lecture No.</TableHead>
                     <TableHead>Student</TableHead>
                     <TableHead>Roll</TableHead>
-                    <TableHead>Subject</TableHead>
                     <TableHead>Batch</TableHead>
+                    <TableHead>Teacher</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Marked Via</TableHead>
-                    <TableHead>Timestamp</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {history.length === 0 ? (
+                  {filteredHistory.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-muted-foreground">
+                      <TableCell colSpan={11} className="text-center text-muted-foreground">
                         {historyLoading ? 'Loading attendance history...' : 'No attendance records for this selection.'}
                       </TableCell>
                     </TableRow>
-                  ) : history.map((record, index) => (
+                  ) : filteredHistory.map((record, index) => (
                     <TableRow key={record._id}>
+                      <TableCell>{record.subjectId ? `${record.subjectId.code} - ${record.subjectId.name}` : '-'}</TableCell>
                       <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
                       <TableCell>{new Date(record.date).toLocaleDateString(undefined, { weekday: 'long' })}</TableCell>
-                      <TableCell>{history.length - index}</TableCell>
+                      <TableCell>{new Date(record.timestamp).toLocaleTimeString()}</TableCell>
+                      <TableCell>{filteredHistory.length - index}</TableCell>
                       <TableCell className="font-medium">{record.studentId?.name || '-'}</TableCell>
                       <TableCell>{record.studentId?.rollNumber || record.studentId?.enrollmentNumber || '-'}</TableCell>
-                      <TableCell>{record.subjectId ? `${record.subjectId.code} - ${record.subjectId.name}` : '-'}</TableCell>
                       <TableCell>{record.batchId?.batchCode || '-'}</TableCell>
+                      <TableCell>{record.teacherId?.name || '-'}</TableCell>
                       <TableCell><Badge variant={record.status === 'absent' ? 'destructive' : 'secondary'}>{record.status}</Badge></TableCell>
                       <TableCell>{record.markedVia || '-'}</TableCell>
-                      <TableCell>{new Date(record.timestamp).toLocaleString()}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

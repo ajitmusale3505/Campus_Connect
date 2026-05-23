@@ -52,9 +52,14 @@ export async function GET(request: NextRequest) {
       nextDate.setDate(selectedDate.getDate() + 1);
       query.date = { $gte: selectedDate, $lt: nextDate };
     } else if (startDate && endDate) {
+      const rangeStart = new Date(startDate);
+      rangeStart.setHours(0, 0, 0, 0);
+      const rangeEnd = new Date(endDate);
+      rangeEnd.setHours(0, 0, 0, 0);
+      rangeEnd.setDate(rangeEnd.getDate() + 1);
       query.date = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
+        $gte: rangeStart,
+        $lt: rangeEnd,
       };
     }
 
