@@ -3,6 +3,8 @@ import dbConnect from '@/lib/mongodb';
 import University from '@/models/University';
 import { ensureSppuAcademicSeedData } from '@/seed/sppuAcademicData';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     await dbConnect();
