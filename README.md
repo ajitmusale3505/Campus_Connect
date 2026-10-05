@@ -589,7 +589,7 @@ For support, email: support@road2tech.com
 
 <div align="center">
 
-**Made with ❤️ by Road2Tech Team**
+**Made with ❤️ by Tapodham Tech**
 
 ⭐ Star this repo if you find it helpful!
 
